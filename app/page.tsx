@@ -5,8 +5,11 @@ import {
   SignedOut,
   UserButton,
 } from "@clerk/nextjs";
+import { checkUser } from "@/lib/checkUser";
 
-export default function Home() {
+export default async function Home() {
+  const user = await checkUser();
+
   return (
     <main className="min-h-screen flex flex-col items-center justify-center bg-gray-950 text-white p-6">
       <h1 className="text-4xl font-bold mb-4">Calendra</h1>
@@ -29,8 +32,10 @@ export default function Home() {
 
       <SignedIn>
         <div className="flex flex-col items-center gap-4">
-          <p className="text-green-400 font-medium">You are authenticated!</p>
-          <UserButton afterSignOutUrl="/" />
+          <p className="text-green-400 font-medium">
+            Welcome back{user?.name ? `, ${user.name}` : ""}!
+          </p>
+          <UserButton />
         </div>
       </SignedIn>
     </main>
