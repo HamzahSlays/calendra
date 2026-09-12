@@ -1,0 +1,88 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+model User {
+  id           String         @id @default(cuid())
+  clerkUserId  String         @unique
+  email        String         @unique
+  name         String?
+  username     String?        @unique
+  imageUrl     String?
+  
+  eventTypes   EventType[]
+  availability Availability[]
+  bookings     Booking[]
+
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+}
+
+model EventType {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  title       String
+  slug        String
+  description String?
+  duration    Int
+  isActive    Boolean   @default(true)
+  
+  bookings    Booking[]
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([userId, slug])
+}
+
+model Availability {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  day       DayOfWeek
+  startTime String
+  endTime   String
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@unique([userId, day])
+}
+
+model Booking {
+  id             String    @id @default(cuid())
+  eventTypeId    String
+  eventType      EventType @relation(fields: [eventTypeId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  customerName   String
+  customerEmail  String
+  customerNotes  String?
+
+  startTime      DateTime
+  endTime        DateTime
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([userId, startTime])
+}
