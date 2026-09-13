@@ -1,43 +1,43 @@
-import {
-  SignInButton,
-  SignUpButton,
-  SignedIn,
-  SignedOut,
-  UserButton,
-} from "@clerk/nextjs";
 import { checkUser } from "@/lib/checkUser";
+import { redirect } from "next/navigation";
+import { UserButton } from "@clerk/nextjs";
+import BookingUrlCard from "@/components/BookingUrlCard";
 
-export default async function Home() {
+export default async function DashboardPage() {
   const user = await checkUser();
 
+  if (!user) {
+    redirect("/");
+  }
+
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center bg-gray-950 text-white p-6">
-      <h1 className="text-4xl font-bold mb-4">Calendra</h1>
-      <p className="text-gray-400 mb-8">Event Scheduling & Calendar Platform</p>
-
-      <SignedOut>
-        <div className="flex gap-4">
-          <SignInButton mode="modal">
-            <button className="px-5 py-2.5 bg-gray-800 hover:bg-gray-700 text-white rounded-lg font-medium transition">
-              Sign In
-            </button>
-          </SignInButton>
-          <SignUpButton mode="modal">
-            <button className="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-medium transition">
-              Sign Up
-            </button>
-          </SignUpButton>
+    <div className="min-h-screen bg-gray-950 text-white p-8">
+      {/* Top Header */}
+      <header className="flex justify-between items-center pb-8 border-b border-gray-800 max-w-5xl mx-auto">
+        <div>
+          <h1 className="text-2xl font-bold">Dashboard</h1>
+          <p className="text-gray-400 text-sm">Welcome back, {user.name}!</p>
         </div>
-      </SignedOut>
+        <UserButton />
+      </header>
 
-      <SignedIn>
-        <div className="flex flex-col items-center gap-4">
-          <p className="text-green-400 font-medium">
-            Welcome back{user?.name ? `, ${user.name}` : ""}!
-          </p>
-          <UserButton />
+      {/* Main Content Area */}
+      <main className="max-w-5xl mx-auto mt-8 space-y-6">
+        {/* Dynamic Booking Link Card */}
+        <BookingUrlCard initialUsername={user.username || ""} />
+
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+            <h3 className="text-gray-400 text-sm font-medium">Upcoming Meetings</h3>
+            <p className="text-3xl font-bold mt-2">0</p>
+          </div>
+          <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+            <h3 className="text-gray-400 text-sm font-medium">Event Types</h3>
+            <p className="text-3xl font-bold mt-2">0</p>
+          </div>
         </div>
-      </SignedIn>
-    </main>
+      </main>
+    </div>
   );
 }
