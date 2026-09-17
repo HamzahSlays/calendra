@@ -14,7 +14,7 @@ export default async function DashboardPage() {
     redirect("/");
   }
 
-  // Fetch event types and upcoming bookings (startTime >= current time)
+  // Fetch event types and upcoming non-cancelled bookings
   const [eventTypes, upcomingBookings] = await Promise.all([
     db.eventType.findMany({
       where: { userId: user.id },
@@ -23,6 +23,7 @@ export default async function DashboardPage() {
     db.booking.findMany({
       where: {
         userId: user.id,
+        status: { not: "CANCELLED" },
         startTime: { gte: new Date() },
       },
       include: {

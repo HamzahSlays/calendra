@@ -35,7 +35,6 @@ export async function updateAvailability(schedule: DaySchedule[]) {
 
   if (!user) throw new Error("User not found");
 
-  // Transaction: clear existing availability and write the updated schedule
   await db.$transaction(async (tx) => {
     await tx.availability.deleteMany({
       where: { userId: user.id },
