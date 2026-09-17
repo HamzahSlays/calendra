@@ -1,10 +1,8 @@
 "use server";
 
-import * as prismaModule from "@/lib/prisma";
+import { db } from "@/lib/prisma";
 import { deleteGoogleCalendarEvent } from "@/lib/googleCalendar";
 import { revalidatePath } from "next/cache";
-
-const db = (prismaModule as any).db || (prismaModule as any).prisma || (prismaModule as any).default;
 
 export async function cancelBooking(cancellationToken: string) {
   try {
