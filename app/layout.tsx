@@ -19,7 +19,7 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider>
-      <html lang="en" className="dark">
+      <html lang="en">
         <body className={`${inter.className} antialiased selection:bg-indigo-500 selection:text-white`}>
           <Header />
           <main>{children}</main>
