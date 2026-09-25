@@ -1,6 +1,6 @@
 "use client";
 
-import { SignUpButton } from "@clerk/nextjs";
+import Link from "next/link";
 import { Check } from "lucide-react";
 
 const focusRing =
@@ -32,36 +32,30 @@ export function HeroAuth() {
   return (
     <>
       <div className="mt-9 flex flex-wrap items-center gap-3">
-        <SignUpButton mode="modal">
-          <button
-            type="button"
-            className={`cursor-pointer rounded-full bg-[#0069ff] px-7 py-3.5 text-base font-semibold text-white shadow-[0_10px_28px_-10px_rgba(0,105,255,0.7)] transition hover:bg-[#0057d6] ${focusRing}`}
-          >
-            Get started free
-          </button>
-        </SignUpButton>
+        <Link
+          href="/sign-up"
+          className={`cursor-pointer rounded-full bg-[#0069ff] px-7 py-3.5 text-base font-semibold text-white shadow-[0_10px_28px_-10px_rgba(0,105,255,0.7)] transition hover:bg-[#0057d6] ${focusRing}`}
+        >
+          Get started free
+        </Link>
 
         <span className="px-1 text-sm text-slate-400">or</span>
 
-        <SignUpButton mode="modal">
-          <button
-            type="button"
-            aria-label="Sign up with Google"
-            className={`inline-flex cursor-pointer items-center gap-2 rounded-full border border-[#dbe4f0] bg-white px-4 py-3 text-sm font-semibold text-[#0b3558] transition hover:bg-[#f4f8ff] ${focusRing}`}
-          >
-            <GoogleMark /> Google
-          </button>
-        </SignUpButton>
+        <Link
+          href="/sign-up"
+          aria-label="Sign up with Google"
+          className={`inline-flex cursor-pointer items-center gap-2 rounded-full border border-[#dbe4f0] bg-white px-4 py-3 text-sm font-semibold text-[#0b3558] transition hover:bg-[#f4f8ff] ${focusRing}`}
+        >
+          <GoogleMark /> Google
+        </Link>
 
-        <SignUpButton mode="modal">
-          <button
-            type="button"
-            aria-label="Sign up with Microsoft"
-            className={`inline-flex cursor-pointer items-center gap-2 rounded-full border border-[#dbe4f0] bg-white px-4 py-3 text-sm font-semibold text-[#0b3558] transition hover:bg-[#f4f8ff] ${focusRing}`}
-          >
-            <MicrosoftMark /> Microsoft
-          </button>
-        </SignUpButton>
+        <Link
+          href="/sign-up"
+          aria-label="Sign up with Microsoft"
+          className={`inline-flex cursor-pointer items-center gap-2 rounded-full border border-[#dbe4f0] bg-white px-4 py-3 text-sm font-semibold text-[#0b3558] transition hover:bg-[#f4f8ff] ${focusRing}`}
+        >
+          <MicrosoftMark /> Microsoft
+        </Link>
       </div>
 
       <p className="mt-5 flex items-center gap-2 text-sm text-slate-500">
