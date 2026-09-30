@@ -6,6 +6,7 @@ import { Calendar, Clock, Settings, ExternalLink } from "lucide-react";
 import CreateEventModal from "@/components/CreateEventModal";
 import EventCard from "@/components/EventCard";
 import CancelBookingButton from "@/components/CancelBookingButton";
+import MeetingCalendarView from "@/components/MeetingCalendarView";
 
 export default async function DashboardPage() {
   const user = await currentUser();
@@ -126,6 +127,9 @@ export default async function DashboardPage() {
             </div>
           )}
         </div>
+
+        {/* Meeting Calendar with Hover Details */}
+        <MeetingCalendarView bookings={dbUser.bookings || []} />
 
         {/* Upcoming Meetings List */}
         <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">

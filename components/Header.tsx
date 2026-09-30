@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Calendar } from "lucide-react";
 import { UserButton, SignedIn, SignedOut } from "@clerk/nextjs";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export function Header() {
   return (
@@ -21,8 +22,11 @@ export function Header() {
           </span>
         </Link>
 
-        {/* Right Authentication Controls */}
+        {/* Right Authentication & Lantern Theme Controls */}
         <div className="flex items-center gap-3">
+          {/* Top Right Lantern Toggle Button */}
+          <ThemeToggle />
+
           <SignedIn>
             <Link
               href="/dashboard"

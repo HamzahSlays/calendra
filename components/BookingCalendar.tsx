@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Clock, Video, CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Clock, Video, CheckCircle2 } from "lucide-react";
 
 interface Props {
   eventType: {
@@ -25,22 +25,30 @@ export default function BookingCalendar({ eventType, host }: Props) {
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Time slots generated for the scroller
-  const timeSlots = [
-    "09:00 AM",
-    "09:30 AM",
-    "10:00 AM",
-    "10:30 AM",
-    "11:00 AM",
-    "11:30 AM",
-    "01:00 PM",
-    "01:30 PM",
-    "02:00 PM",
-    "02:30 PM",
-    "03:00 PM",
-    "03:30 PM",
-    "04:00 PM",
-  ];
+  // Dynamically generate time slots based on the actual duration (15m, 30m, 45m, 60m)
+  const timeSlots = useMemo(() => {
+    const slots: string[] = [];
+    const duration = eventType.duration || 30;
+    const startHour = 9; // 9:00 AM
+    const endHour = 17; // 5:00 PM
+
+    let currentMinutes = startHour * 60;
+    const totalEndMinutes = endHour * 60;
+
+    while (currentMinutes + duration <= totalEndMinutes) {
+      const hours24 = Math.floor(currentMinutes / 60);
+      const mins = currentMinutes % 60;
+
+      const period = hours24 >= 12 ? "PM" : "AM";
+      const hours12 = hours24 % 12 === 0 ? 12 : hours24 % 12;
+      const formattedTime = `${String(hours12).padStart(2, "0")}:${String(mins).padStart(2, "0")} ${period}`;
+
+      slots.push(formattedTime);
+      currentMinutes += duration;
+    }
+
+    return slots;
+  }, [eventType.duration]);
 
   const handleBooking = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,8 +56,7 @@ export default function BookingCalendar({ eventType, host }: Props) {
     setIsSubmitting(true);
 
     try {
-      // Call your existing booking action or API endpoint here:
-      // await createBooking({ eventTypeId: eventType.id, date: selectedDate, time: selectedTime, name: guestName, email: guestEmail });
+      // Plug into your booking action here if available
       setIsConfirmed(true);
     } catch (err) {
       console.error(err);
@@ -105,20 +112,19 @@ export default function BookingCalendar({ eventType, host }: Props) {
         )}
       </div>
 
-      {/* Right Column: Date & Smooth Time Scroller */}
+      {/* Right Column: Date & Responsive Time Scroller */}
       <div className="flex flex-1 flex-col p-8 sm:flex-row gap-6">
-        
-        {/* Date Selector */}
+        {/* Date & Guest Input Section */}
         <div className="flex-1">
           <h2 className="text-sm font-bold text-[#0b3558] mb-3">Select Date</h2>
           <input
             type="date"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm font-medium text-slate-700 transition focus:border-[#0069ff] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0069ff]/20"
+            className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm font-medium text-slate-900 transition focus:border-[#0069ff] focus:outline-none focus:ring-2 focus:ring-[#0069ff]/20"
           />
 
-          {/* Guest Form (shown when time slot is picked) */}
+          {/* Guest Form (High-contrast inputs) */}
           {selectedTime && (
             <form onSubmit={handleBooking} className="mt-6 space-y-3">
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
@@ -130,7 +136,7 @@ export default function BookingCalendar({ eventType, host }: Props) {
                 placeholder="Your Name"
                 value={guestName}
                 onChange={(e) => setGuestName(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 p-2.5 text-sm focus:border-[#0069ff] focus:outline-none"
+                className="w-full rounded-xl border border-slate-300 bg-white p-3 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-[#0069ff] focus:outline-none focus:ring-2 focus:ring-[#0069ff]/20"
               />
               <input
                 type="email"
@@ -138,7 +144,7 @@ export default function BookingCalendar({ eventType, host }: Props) {
                 placeholder="Your Email"
                 value={guestEmail}
                 onChange={(e) => setGuestEmail(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 p-2.5 text-sm focus:border-[#0069ff] focus:outline-none"
+                className="w-full rounded-xl border border-slate-300 bg-white p-3 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-[#0069ff] focus:outline-none focus:ring-2 focus:ring-[#0069ff]/20"
               />
               <button
                 type="submit"
@@ -151,7 +157,7 @@ export default function BookingCalendar({ eventType, host }: Props) {
           )}
         </div>
 
-        {/* Polished Time Slot Scroller */}
+        {/* Dynamic Interval Time Scroller */}
         <div className="sm:w-44 flex flex-col">
           <h2 className="text-sm font-bold text-[#0b3558] mb-3">Select Time</h2>
           <div className="flex-1 max-h-[340px] overflow-y-auto pr-1 space-y-2 select-none scrollbar-thin scrollbar-thumb-slate-200">
@@ -174,7 +180,6 @@ export default function BookingCalendar({ eventType, host }: Props) {
             })}
           </div>
         </div>
-
       </div>
     </div>
   );

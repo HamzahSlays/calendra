@@ -1,16 +1,24 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Lamp, Moon, Sun } from "lucide-react";
+import { Lamp, Sun } from "lucide-react";
 
 export default function ThemeToggle() {
   const [isDark, setIsDark] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     const saved = localStorage.getItem("calendra-theme");
-    if (saved === "dark") {
+    if (
+      saved === "dark" ||
+      (!saved && window.matchMedia("(prefers-color-scheme: dark)").matches)
+    ) {
       setIsDark(true);
       document.documentElement.classList.add("dark");
+    } else {
+      setIsDark(false);
+      document.documentElement.classList.remove("dark");
     }
   }, []);
 
@@ -26,18 +34,24 @@ export default function ThemeToggle() {
     }
   };
 
+  if (!mounted) {
+    return (
+      <div className="h-9 w-9 rounded-xl border border-slate-200 bg-white" />
+    );
+  }
+
   return (
     <button
       onClick={toggleTheme}
       type="button"
       title={isDark ? "Switch to Light Mode" : "Switch to Dark / Lantern Mode"}
-      aria-label="Toggle theme lantern"
-      className="fixed bottom-6 right-6 z-50 flex h-12 w-12 items-center justify-center rounded-full border border-slate-200 bg-white/95 text-[#0b3558] shadow-lg backdrop-blur-md transition-all duration-300 hover:scale-110 hover:border-[#0069ff] hover:shadow-xl dark:border-slate-700 dark:bg-slate-900 dark:text-amber-300"
+      aria-label="Toggle theme"
+      className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-[#0b3558] shadow-sm transition hover:border-[#0069ff] hover:bg-slate-50 hover:text-[#0069ff] active:scale-95 dark:border-slate-700 dark:bg-slate-800 dark:text-amber-300"
     >
       {isDark ? (
-        <Sun className="h-5 w-5 animate-pulse text-amber-400" />
+        <Sun className="h-4 w-4 animate-pulse text-amber-400" />
       ) : (
-        <Lamp className="h-5 w-5 text-[#0069ff]" />
+        <Lamp className="h-4 w-4 text-[#0069ff]" />
       )}
     </button>
   );
