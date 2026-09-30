@@ -1,128 +1,138 @@
-import { checkUser } from "@/lib/checkUser";
+import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { UserButton } from "@clerk/nextjs";
 import { db } from "@/lib/prisma";
 import Link from "next/link";
-import BookingUrlCard from "@/components/BookingUrlCard";
-import CreateEventModal from "@/components/CreateEventModal";
-import UpcomingMeetingsList from "@/components/UpcomingMeetingsList";
+import { Calendar, Clock, Copy, ExternalLink, Plus, Settings } from "lucide-react";
+import CopyButton from "@/components/CopyButton"; // Or inline copy handler
 
 export default async function DashboardPage() {
-  const user = await checkUser();
+  const user = await currentUser();
+  if (!user) redirect("/sign-in");
 
-  if (!user) {
-    redirect("/");
-  }
+  const dbUser = await db.user.findUnique({
+    where: { clerkUserId: user.id },
+    include: {
+      eventTypes: true,
+      bookings: {
+        orderBy: { startTime: "asc" },
+      },
+    },
+  });
 
-  // Fetch event types and upcoming non-cancelled bookings
-  const [eventTypes, upcomingBookings] = await Promise.all([
-    db.eventType.findMany({
-      where: { userId: user.id },
-      orderBy: { createdAt: "desc" },
-    }),
-    db.booking.findMany({
-      where: {
-        userId: user.id,
-        status: { not: "CANCELLED" },
-        startTime: { gte: new Date() },
-      },
-      include: {
-        eventType: {
-          select: { title: true, duration: true },
-        },
-      },
-      orderBy: { startTime: "asc" },
-    }),
-  ]);
+  if (!dbUser) redirect("/sign-in");
+
+  const bookingUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://calendra-phi.vercel.app"}/${dbUser.username}`;
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white p-8">
-      {/* Top Header */}
-      <header className="flex justify-between items-center pb-8 border-b border-gray-800 max-w-5xl mx-auto">
-        <div>
-          <h1 className="text-2xl font-bold">Dashboard</h1>
-          <p className="text-gray-400 text-sm">Welcome back, {user.name}!</p>
-        </div>
-        <div className="flex items-center gap-4">
-          <Link
-            href="/availability"
-            className="text-xs px-3.5 py-2 bg-gray-900 border border-gray-800 hover:border-gray-700 text-gray-300 hover:text-white rounded-lg transition font-medium"
-          >
-            ⚙ Availability Settings
-          </Link>
-          <UserButton />
-        </div>
-      </header>
-
-      {/* Main Content Area */}
-      <main className="max-w-5xl mx-auto mt-8 space-y-8">
-        {/* Custom Slug & Public URL Card */}
-        <BookingUrlCard initialUsername={user.username || ""} />
-
-        {/* Dynamic Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
-            <h3 className="text-gray-400 text-sm font-medium">Upcoming Meetings</h3>
-            <p className="text-3xl font-bold mt-2">{upcomingBookings.length}</p>
+    <div className="min-h-[calc(100vh-64px)] bg-[#fbfcfe] py-10 px-6 sm:px-10 text-[#0b3558]">
+      <div className="mx-auto max-w-6xl space-y-8">
+        
+        {/* Top Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200/80 pb-6">
+          <div>
+            <h1 className="text-3xl font-extrabold tracking-tight text-[#0b3558]">
+              Dashboard
+            </h1>
+            <p className="mt-1 text-sm text-slate-500">
+              Welcome back, <span className="font-semibold text-slate-700">{dbUser.name || "User"}</span>! Manage your availability and meetings.
+            </p>
           </div>
-          <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
-            <h3 className="text-gray-400 text-sm font-medium">Event Types</h3>
-            <p className="text-3xl font-bold mt-2">{eventTypes.length}</p>
+
+          <div className="flex items-center gap-3">
+            <Link
+              href="/availability"
+              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+            >
+              <Settings className="h-4 w-4 text-slate-500" />
+              Availability
+            </Link>
           </div>
         </div>
 
-        {/* Upcoming Meetings Section */}
-        <section>
-          <h2 className="text-xl font-bold mb-4">Upcoming Schedule</h2>
-          <UpcomingMeetingsList bookings={upcomingBookings} />
-        </section>
-
-        {/* Event Types Section */}
-        <section>
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold">Your Event Types</h2>
-            <CreateEventModal />
-          </div>
-
-          {eventTypes.length === 0 ? (
-            <div className="bg-gray-900/40 border border-dashed border-gray-800 rounded-xl p-12 text-center">
-              <p className="text-gray-400 text-sm mb-4">
-                You haven't created any event types yet.
+        {/* Shareable Link Card */}
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-base font-semibold text-[#0b3558]">
+                Your Public Booking Link
+              </h2>
+              <p className="text-sm text-slate-500">
+                Share this link with clients to let them book meetings directly.
               </p>
-              <CreateEventModal />
+            </div>
+            <Link
+              href={`/${dbUser.username}`}
+              target="_blank"
+              className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#0069ff] hover:underline"
+            >
+              View live page <ExternalLink className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+
+          <div className="mt-4 flex max-w-xl items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5">
+            <input
+              type="text"
+              readOnly
+              value={bookingUrl}
+              className="w-full bg-transparent text-sm font-medium text-slate-600 focus:outline-none"
+            />
+          </div>
+        </div>
+
+        {/* Metrics Grid */}
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+              Upcoming Meetings
+            </span>
+            <p className="mt-2 text-4xl font-extrabold text-[#0b3558]">
+              {dbUser.bookings?.length || 0}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+              Active Event Types
+            </span>
+            <p className="mt-2 text-4xl font-extrabold text-[#0069ff]">
+              {dbUser.eventTypes?.length || 0}
+            </p>
+          </div>
+        </div>
+
+        {/* Upcoming Meetings List */}
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+          <h3 className="text-lg font-bold text-[#0b3558]">Upcoming Schedule</h3>
+
+          {(!dbUser.bookings || dbUser.bookings.length === 0) ? (
+            <div className="mt-6 flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 py-12 text-center">
+              <Calendar className="h-10 w-10 text-slate-300" />
+              <p className="mt-3 text-sm font-medium text-slate-600">
+                No meetings scheduled yet
+              </p>
+              <p className="text-xs text-slate-400">
+                Share your public booking link to start accepting appointments.
+              </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {eventTypes.map((event) => (
-                <div
-                  key={event.id}
-                  className="bg-gray-900 border border-gray-800 rounded-xl p-6 flex flex-col justify-between"
-                >
+            <div className="mt-4 divide-y divide-slate-100">
+              {dbUser.bookings.map((booking: any) => (
+                <div key={booking.id} className="flex items-center justify-between py-4">
                   <div>
-                    <div className="flex justify-between items-start">
-                      <h3 className="font-semibold text-lg">{event.title}</h3>
-                      <span className="text-xs px-2.5 py-1 bg-purple-950 text-purple-400 rounded-full border border-purple-800">
-                        {event.duration} mins
-                      </span>
-                    </div>
-                    {event.description && (
-                      <p className="text-sm text-gray-400 mt-2">{event.description}</p>
-                    )}
+                    <h4 className="font-semibold text-slate-800">{booking.guestName || "Guest"}</h4>
+                    <p className="text-sm text-slate-500">{booking.guestEmail}</p>
                   </div>
-                  <div className="flex justify-between items-center pt-4 mt-4 border-t border-gray-800 text-xs text-gray-400">
-                    <span>
-                      /{user.username}/{event.slug}
-                    </span>
-                    <span className={event.isActive ? "text-green-400" : "text-gray-500"}>
-                      {event.isActive ? "Active" : "Inactive"}
-                    </span>
+                  <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700">
+                    <Clock className="h-3.5 w-3.5 text-[#0069ff]" />
+                    {new Date(booking.startTime).toLocaleString()}
                   </div>
                 </div>
               ))}
             </div>
           )}
-        </section>
-      </main>
+        </div>
+
+      </div>
     </div>
   );
 }
