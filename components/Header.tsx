@@ -6,10 +6,13 @@ import { UserButton, SignedIn, SignedOut } from "@clerk/nextjs";
 
 export function Header() {
   return (
-    <header className="sticky top-0 z-50 border-b border-slate-100 bg-white/90 backdrop-blur-md">
+    <header className="sticky top-0 z-50 w-full border-b border-slate-200/80 bg-white/95 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6 sm:px-8">
         {/* Brand Logo */}
-        <Link href="/" className="flex items-center gap-2.5 transition opacity-90 hover:opacity-100">
+        <Link
+          href="/"
+          className="flex items-center gap-2.5 transition opacity-90 hover:opacity-100"
+        >
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0069ff] text-white shadow-sm">
             <Calendar className="h-5 w-5" />
           </div>
@@ -18,12 +21,12 @@ export function Header() {
           </span>
         </Link>
 
-        {/* Right Auth Controls */}
+        {/* Right Authentication Controls */}
         <div className="flex items-center gap-3">
           <SignedIn>
             <Link
               href="/dashboard"
-              className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-[#0b3558] transition hover:bg-slate-50 hover:border-slate-300"
+              className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-[#0b3558] shadow-sm transition hover:bg-slate-50 hover:border-slate-300"
             >
               Dashboard
             </Link>
