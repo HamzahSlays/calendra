@@ -1,68 +1,69 @@
 "use server";
 
+import { currentUser } from "@clerk/nextjs/server";
 import { db } from "@/lib/prisma";
-import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 
-export async function createEventType(formData: {
-  title: string;
-  description?: string;
-  duration: number;
-}) {
-  const { userId } = await auth();
+export async function createEventType(formData: FormData) {
+  const user = await currentUser();
+  if (!user) throw new Error("Unauthorized");
 
-  if (!userId) {
-    throw new Error("Unauthorized");
+  const title = formData.get("title") as string;
+  const description = formData.get("description") as string;
+  const duration = parseInt(formData.get("duration") as string, 10);
+
+  if (!title || isNaN(duration)) {
+    throw new Error("Invalid form data");
   }
 
-  const user = await db.user.findUnique({
-    where: { clerkUserId: userId },
-  });
-
-  if (!user) {
-    return { success: false, error: "User not found" };
-  }
-
-  // Generate slug from title: "30 Min Chat" -> "30-min-chat"
-  const slug = formData.title
+  // Generate URL slug from title (e.g. "30 Min Chat" -> "30-min-chat")
+  const baseSlug = title
     .toLowerCase()
     .trim()
-    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/[^\w\s-]/g, "")
+    .replace(/[\s_-]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
-  try {
-    const event = await db.eventType.create({
-      data: {
-        userId: user.id,
-        title: formData.title,
-        slug,
-        description: formData.description,
-        duration: Number(formData.duration),
-      },
-    });
+  const dbUser = await db.user.findUnique({
+    where: { clerkUserId: user.id },
+  });
 
-    revalidatePath("/dashboard");
-    return { success: true, event };
-  } catch (err: any) {
-    if (err.code === "P2002") {
-      return { success: false, error: "An event type with this title/slug already exists." };
-    }
-    return { success: false, error: "Failed to create event type." };
-  }
-}
+  if (!dbUser) throw new Error("User record not found");
 
-export async function toggleEventTypeStatus(eventId: string, currentStatus: boolean) {
-  const { userId } = await auth();
+  const slug = `${baseSlug}-${Date.now().toString().slice(-4)}`;
 
-  if (!userId) {
-    throw new Error("Unauthorized");
-  }
-
-  await db.eventType.update({
-    where: { id: eventId },
-    data: { isActive: !currentStatus },
+  await db.eventType.create({
+    data: {
+      userId: dbUser.id,
+      title,
+      description: description || null,
+      duration,
+      slug,
+      isActive: true,
+    },
   });
 
   revalidatePath("/dashboard");
-  return { success: true };
+  revalidatePath(`/${dbUser.username}`);
+}
+export async function deleteEventType(id: string) {
+  const user = await currentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const dbUser = await db.user.findUnique({
+    where: { clerkUserId: user.id },
+  });
+
+  if (!dbUser) throw new Error("User record not found");
+
+  // Ensure user owns the event before deleting
+  await db.eventType.deleteMany({
+    where: {
+      id,
+      userId: dbUser.id,
+    },
+  });
+
+  revalidatePath("/dashboard");
+  revalidatePath(`/${dbUser.username}`);
 }

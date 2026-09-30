@@ -1,102 +1,111 @@
 "use client";
 
 import { useState } from "react";
+import { Plus, X, Clock, AlignLeft, Tag } from "lucide-react";
 import { createEventType } from "@/actions/events";
 
 export default function CreateEventModal() {
   const [isOpen, setIsOpen] = useState(false);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [duration, setDuration] = useState(30);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setIsSubmitting(true);
+    const formData = new FormData(event.currentTarget);
 
-    const res = await createEventType({ title, description, duration });
-
-    if (!res.success) {
-      setError(res.error || "Failed to create event");
-    } else {
-      setTitle("");
-      setDescription("");
-      setDuration(30);
+    try {
+      await createEventType(formData);
       setIsOpen(false);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to create event type.");
+    } finally {
+      setIsSubmitting(false);
     }
-    setLoading(false);
-  };
+  }
 
   return (
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-sm font-medium transition"
+        className="inline-flex items-center gap-2 rounded-xl bg-[#0069ff] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0057d6] active:scale-95"
       >
-        + Create Event Type
+        <Plus className="h-4 w-4" />
+        New Event Type
       </button>
 
       {isOpen && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">Create New Event Type</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <h2 className="text-lg font-bold text-[#0b3558]">Create Event Type</h2>
+              <button
+                onClick={() => setIsOpen(false)}
+                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="mt-4 space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-400 mb-1">Title</label>
+                <label className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-slate-700">
+                  <Tag className="h-3.5 w-3.5 text-slate-400" />
+                  Event Title
+                </label>
                 <input
+                  name="title"
                   type="text"
                   required
-                  placeholder="e.g. 15 Min Quick Chat"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="w-full bg-gray-950 border border-gray-800 rounded-lg p-2.5 text-sm text-white focus:border-purple-500 focus:outline-none"
+                  placeholder="e.g., 30 Min Quick Sync"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-800 transition focus:border-[#0069ff] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0069ff]/20"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-400 mb-1">Duration (minutes)</label>
+                <label className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-slate-700">
+                  <Clock className="h-3.5 w-3.5 text-slate-400" />
+                  Duration (minutes)
+                </label>
                 <select
-                  value={duration}
-                  onChange={(e) => setDuration(Number(e.target.value))}
-                  className="w-full bg-gray-950 border border-gray-800 rounded-lg p-2.5 text-sm text-white focus:border-purple-500 focus:outline-none"
+                  name="duration"
+                  defaultValue="30"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-800 transition focus:border-[#0069ff] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0069ff]/20"
                 >
-                  <option value={15}>15 mins</option>
-                  <option value={30}>30 mins</option>
-                  <option value={45}>45 mins</option>
-                  <option value={60}>60 mins</option>
+                  <option value="15">15 minutes</option>
+                  <option value="30">30 minutes</option>
+                  <option value="45">45 minutes</option>
+                  <option value="60">60 minutes</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-400 mb-1">Description (Optional)</label>
+                <label className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-slate-700">
+                  <AlignLeft className="h-3.5 w-3.5 text-slate-400" />
+                  Description (optional)
+                </label>
                 <textarea
-                  placeholder="Brief note about the meeting..."
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
+                  name="description"
                   rows={3}
-                  className="w-full bg-gray-950 border border-gray-800 rounded-lg p-2.5 text-sm text-white focus:border-purple-500 focus:outline-none"
+                  placeholder="A quick one-on-one call to discuss project updates."
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-800 transition focus:border-[#0069ff] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0069ff]/20"
                 />
               </div>
 
-              {error && <p className="text-xs text-red-400">{error}</p>}
-
-              <div className="flex justify-end gap-3 pt-2">
+              <div className="flex items-center justify-end gap-2 pt-3">
                 <button
                   type="button"
                   onClick={() => setIsOpen(false)}
-                  className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-sm rounded-lg"
+                  className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={loading}
-                  className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-sm font-medium rounded-lg disabled:opacity-50"
+                  disabled={isSubmitting}
+                  className="rounded-xl bg-[#0069ff] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#0057d6] disabled:opacity-50"
                 >
-                  {loading ? "Creating..." : "Save Event"}
+                  {isSubmitting ? "Creating..." : "Save Event Type"}
                 </button>
               </div>
             </form>
