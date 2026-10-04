@@ -2,17 +2,26 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #09090b;
-  --foreground: #fafafa;
-}
+@layer base {
+  :root {
+    --background: 251 252 254; /* #fbfcfe */
+    --foreground: 11 53 88;    /* #0b3558 */
+    --card: 255 255 255;
+    --card-border: 226 232 240; /* slate-200 */
+    --muted-text: 100 116 139;  /* slate-500 */
+  }
 
-body {
-  color: var(--foreground);
-  background-color: var(--background);
-  background-image: 
-    radial-gradient(at 50% 0%, rgba(99, 102, 241, 0.08) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.05) 0px, transparent 50%);
-  background-attachment: fixed;
-  min-height: 100vh;
+  .dark {
+    --background: 15 23 42;     /* slate-900 */
+    --foreground: 248 250 252;  /* slate-50 */
+    --card: 30 41 59;          /* slate-800 */
+    --card-border: 51 65 85;    /* slate-700 */
+    --muted-text: 148 163 184;  /* slate-400 */
+  }
+
+  body {
+    background-color: rgb(var(--background));
+    color: rgb(var(--foreground));
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
 }
