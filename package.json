@@ -13,6 +13,7 @@
     "@clerk/nextjs": "^6.29.0",
     "@prisma/client": "^6.19.3",
     "googleapis": "^181.0.0",
+    "ics": "^3.12.1",
     "lucide-react": "^1.46.0",
     "next": "^15.2.8",
     "react": "19.1.0",

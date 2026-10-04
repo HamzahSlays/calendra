@@ -3,6 +3,7 @@
 import { db } from "@/lib/prisma";
 import { Resend } from "resend";
 import { revalidatePath } from "next/cache";
+import { createEvent, DateArray } from "ics";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -38,7 +39,7 @@ export async function createBooking(payload: BookingPayload) {
   const startTime = new Date(year, month - 1, day, hours, minutes);
   const endTime = new Date(startTime.getTime() + eventType.duration * 60000);
 
-  // 1. Save booking in PostgreSQL via Prisma
+  // 1. Save booking in database
   const booking = await db.booking.create({
     data: {
       userId: eventType.userId,
@@ -50,8 +51,49 @@ export async function createBooking(payload: BookingPayload) {
     },
   });
 
-  // 2. Dispatch Confirmation Email via Resend
-  console.log("Dispatching Resend confirmation to:", guestEmail);
+  // 2. Generate standard iCalendar (.ics) format for Google Calendar / Apple Calendar
+  const icsStartDate: DateArray = [
+    startTime.getFullYear(),
+    startTime.getMonth() + 1,
+    startTime.getDate(),
+    startTime.getHours(),
+    startTime.getMinutes(),
+  ];
+
+  const icsEvent = await new Promise<string>((resolve, reject) => {
+    createEvent(
+      {
+        title: `${eventType.title} with ${eventType.user.name || "Host"}`,
+        description: eventType.description || `Meeting scheduled via Calendra.`,
+        start: icsStartDate,
+        duration: { minutes: eventType.duration },
+        status: "CONFIRMED",
+        busyStatus: "BUSY",
+        organizer: {
+          name: eventType.user.name || "Calendra Host",
+          email: eventType.user.email || "noreply@calendra.com",
+        },
+        attendees: [
+          {
+            name: guestName,
+            email: guestEmail,
+            rsvp: true,
+            partstat: "ACCEPTED",
+            role: "REQ-PARTICIPANT",
+          },
+        ],
+      },
+      (error, value) => {
+        if (error) reject(error);
+        resolve(value);
+      }
+    );
+  });
+
+  const icsBuffer = Buffer.from(icsEvent, "utf-8");
+
+  // 3. Dispatch Email with .ics Calendar attachment
+  console.log("Dispatching Resend confirmation with Calendar invite to:", guestEmail);
   const emailResult = await resend.emails.send({
     from: "Calendra <onboarding@resend.dev>",
     to: [guestEmail],
@@ -64,9 +106,17 @@ export async function createBooking(payload: BookingPayload) {
           <p style="margin: 0 0 8px 0;"><strong>Date & Time:</strong> ${startTime.toLocaleString()}</p>
           <p style="margin: 0;"><strong>Duration:</strong> ${eventType.duration} minutes</p>
         </div>
-        <p style="color: #64748b; font-size: 13px;">Sent via Calendra Scheduling</p>
+        <p style="color: #475569; font-size: 14px;">A calendar invitation (<code>invite.ics</code>) has been attached to this email so it can be added to your Google or Apple calendar automatically.</p>
+        <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 20px 0;" />
+        <p style="color: #94a3b8; font-size: 12px;">Sent via Calendra Scheduling</p>
       </div>
     `,
+    attachments: [
+      {
+        filename: "invite.ics",
+        content: icsBuffer,
+      },
+    ],
   });
 
   if (emailResult.error) {
