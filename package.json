@@ -10,7 +10,7 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
-    "@clerk/nextjs": "^6.29.0",
+    "@clerk/nextjs": "^6.39.7",
     "@prisma/client": "^6.19.3",
     "googleapis": "^181.0.0",
     "ics": "^3.12.1",
