@@ -1,13 +1,11 @@
 "use server";
 
 import { db } from "@/lib/prisma";
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 import { revalidatePath } from "next/cache";
 import { createEvent, DateArray } from "ics";
 import { clerkClient } from "@clerk/nextjs/server";
 import { google } from "googleapis";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 interface BookingPayload {
   eventTypeId: string;
@@ -63,7 +61,9 @@ export async function createBooking(payload: BookingPayload) {
       const descriptionContent = [
         eventType.description || "Scheduled via Calendra",
         notes ? `\n\nGuest Note:\n${notes}` : "",
-      ].filter(Boolean).join("");
+      ]
+        .filter(Boolean)
+        .join("");
 
       const gcalEvent = await calendar.events.insert({
         calendarId: "primary",
@@ -122,7 +122,7 @@ export async function createBooking(payload: BookingPayload) {
         busyStatus: "BUSY",
         organizer: {
           name: eventType.user.name || "Calendra Host",
-          email: eventType.user.email || "noreply@calendra.com",
+          email: eventType.user.email || process.env.GMAIL_USER || "noreply@calendra.com",
         },
         attendees: [
           {
@@ -149,32 +149,40 @@ export async function createBooking(payload: BookingPayload) {
     timeStyle: "short",
   });
 
-  // 4. Send confirmation emails separately
-  if (process.env.RESEND_API_KEY) {
-    const hostEmail = eventType.user.email;
-    const recipients = Array.from(new Set([guestEmail, hostEmail].filter(Boolean))) as string[];
+  // 4. Send emails via Nodemailer to ANY guest email and host
+  if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
+    try {
+      const transporter = nodemailer.createTransport({
+        service: "gmail",
+        auth: {
+          user: process.env.GMAIL_USER,
+          pass: process.env.GMAIL_APP_PASSWORD,
+        },
+      });
 
-    for (const recipient of recipients) {
-      const isHost = recipient === hostEmail;
+      const hostEmail = eventType.user.email;
+      const recipients = Array.from(new Set([guestEmail, hostEmail].filter(Boolean))) as string[];
 
-      try {
-        await resend.emails.send({
-          from: "Calendra <onboarding@resend.dev>",
-          to: [recipient],
+      for (const recipient of recipients) {
+        const isHost = recipient === hostEmail;
+
+        await transporter.sendMail({
+          from: `"Calendra" <${process.env.GMAIL_USER}>`,
+          to: recipient,
           subject: isHost
             ? `New Booking: ${eventType.title} with ${guestName}`
             : `Confirmed: ${eventType.title} with ${eventType.user.name || "Host"}`,
           html: `
             <div style="font-family: sans-serif; line-height: 1.6; color: #111; max-width: 600px; margin: auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px;">
               <h2 style="color: #0069ff; margin-top: 0;">Meeting Confirmed!</h2>
-              <p><strong>${eventType.title}</strong> is scheduled between <strong>${eventType.user.name || "Host"}</strong> and <strong>${guestName}</strong> (${guestEmail}).</p>
+              <p><strong>${eventType.title}</strong> is scheduled between <strong>${eventType.user.name || "Host"}</strong> and <strong>${guestName}</strong>.</p>
               
               <div style="background: #f8fafc; padding: 16px; border-radius: 12px; margin: 20px 0;">
                 <p style="margin: 0 0 8px 0;"><strong>Date & Time:</strong> ${formattedDisplayTime}</p>
                 <p style="margin: 0 0 8px 0;"><strong>Duration:</strong> ${eventType.duration} minutes</p>
                 ${
                   meetLink
-                    ? `<p style="margin: 0 0 8px 0;"><strong>Video Call:</strong> <a href="${meetLink}" style="color: #0069ff; font-weight: bold;">Join Google Meet</a></p>`
+                    ? `<p style="margin: 0;"><strong>Video Call:</strong> <a href="${meetLink}" style="color: #0069ff; font-weight: bold;">Join Google Meet</a></p>`
                     : ""
                 }
                 ${
@@ -186,7 +194,7 @@ export async function createBooking(payload: BookingPayload) {
 
               <p style="color: #475569; font-size: 14px;">An <code>invite.ics</code> file is attached to sync with external calendar apps.</p>
               <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 20px 0;" />
-              <p style="color: #94a3b8; font-size: 12px;">Sent via Calendra Scheduling</p>
+              <p style="color: #94a3b8; font-size: 12px;">Sent via Calendra</p>
             </div>
           `,
           attachments: [
@@ -196,13 +204,13 @@ export async function createBooking(payload: BookingPayload) {
             },
           ],
         });
-      } catch (emailErr) {
-        console.error(`Resend failed delivering to ${recipient}:`, emailErr);
       }
+    } catch (mailErr) {
+      console.error("Nodemailer error:", mailErr);
     }
   }
 
-  // 5. Invalidate server cache
+  // 5. Revalidate cache
   revalidatePath("/dashboard");
   revalidatePath(`/${eventType.user.username}`);
   revalidatePath(`/${eventType.user.username}/${eventType.slug}`);

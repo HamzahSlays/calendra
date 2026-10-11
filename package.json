@@ -16,6 +16,7 @@
     "ics": "^3.12.1",
     "lucide-react": "^1.46.0",
     "next": "^15.2.8",
+    "nodemailer": "^10.1.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "resend": "^6.31.0"
@@ -23,6 +24,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/nodemailer": "^8.0.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "autoprefixer": "^10.4.21",
