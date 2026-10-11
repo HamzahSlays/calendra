@@ -27,10 +27,10 @@ export default async function DashboardPage() {
   const bookingUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://calendra-phi.vercel.app"}/${dbUser.username || ""}`;
 
   return (
-    <div className="min-h-[calc(100vh-64px)] bg-[#fbfcfe] dark:bg-slate-900 py-10 px-6 sm:px-10 text-[#0b3558] dark:text-slate-100 transition-colors">
+    <div className="min-h-[calc(100vh-64px)] bg-[#fbfcfe] px-6 py-10 text-[#0b3558] transition-colors dark:bg-slate-900 dark:text-slate-100 sm:px-10">
       <div className="mx-auto max-w-6xl space-y-8">
         {/* Header row with Title and Actions */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200/80 dark:border-slate-800 pb-6">
+        <div className="flex flex-col justify-between gap-4 border-b border-slate-200/80 pb-6 dark:border-slate-800 sm:flex-row sm:items-center">
           <div>
             <h1 className="text-3xl font-extrabold tracking-tight text-[#0b3558] dark:text-white">
               Dashboard
@@ -43,7 +43,7 @@ export default async function DashboardPage() {
           <div className="flex items-center gap-3">
             <Link
               href="/availability"
-              className="inline-flex items-center gap-2.5 rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-5 py-3 text-base font-bold text-slate-700 dark:text-slate-200 shadow-sm transition hover:border-[#0069ff] hover:text-[#0069ff] dark:hover:border-[#0069ff] dark:hover:text-[#0069ff]"
+              className="inline-flex items-center gap-2.5 rounded-2xl border-2 border-slate-200 bg-white px-5 py-3 text-base font-bold text-slate-700 shadow-sm transition hover:border-[#0069ff] hover:text-[#0069ff] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-[#0069ff] dark:hover:text-[#0069ff]"
             >
               <Settings className="h-5 w-5 text-[#0069ff]" />
               Availability Settings
@@ -53,8 +53,8 @@ export default async function DashboardPage() {
         </div>
 
         {/* Shareable Link Card */}
-        <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-800/80 p-6 shadow-sm">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-800/80">
+          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
             <div>
               <h2 className="text-base font-semibold text-[#0b3558] dark:text-white">
                 Your Public Booking Link
@@ -74,19 +74,19 @@ export default async function DashboardPage() {
             )}
           </div>
 
-          <div className="mt-4 flex max-w-xl items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-4 py-2.5">
+          <div className="mt-4 flex max-w-xl items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 dark:border-slate-700 dark:bg-slate-900">
             <input
               type="text"
               readOnly
               value={bookingUrl}
-              className="w-full bg-transparent text-sm font-medium text-slate-600 dark:text-slate-300 focus:outline-none"
+              className="w-full bg-transparent text-sm font-medium text-slate-600 focus:outline-none dark:text-slate-300"
             />
           </div>
         </div>
 
         {/* Metrics Grid */}
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-          <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-800/80 p-6 shadow-sm">
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-800/80">
             <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
               Upcoming Meetings
             </span>
@@ -95,7 +95,7 @@ export default async function DashboardPage() {
             </p>
           </div>
 
-          <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-800/80 p-6 shadow-sm">
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-800/80">
             <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
               Active Event Types
             </span>
@@ -112,7 +112,7 @@ export default async function DashboardPage() {
           </div>
 
           {dbUser.eventTypes.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-8 text-center text-slate-400">
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center text-slate-400 dark:border-slate-700 dark:bg-slate-800">
               No event types found. Click <strong>New Event Type</strong> above to create one.
             </div>
           ) : (
@@ -128,15 +128,19 @@ export default async function DashboardPage() {
           )}
         </div>
 
-        {/* Meeting Calendar with Hover Details */}
-        <MeetingCalendarView bookings={dbUser.bookings || []} />
+        {/* Meeting Calendar */}
+        <MeetingCalendarView
+          bookings={dbUser.bookings || []}
+          eventTypes={dbUser.eventTypes || []}
+          username={dbUser.username || ""}
+        />
 
         {/* Upcoming Meetings List */}
-        <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-800/80 p-6 shadow-sm">
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-800/80">
           <h3 className="text-lg font-bold text-[#0b3558] dark:text-white">Upcoming Schedule</h3>
 
           {!dbUser.bookings || dbUser.bookings.length === 0 ? (
-            <div className="mt-6 flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 dark:border-slate-700 py-12 text-center">
+            <div className="mt-6 flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 py-12 text-center dark:border-slate-700">
               <Calendar className="h-10 w-10 text-slate-300 dark:text-slate-600" />
               <p className="mt-3 text-sm font-medium text-slate-600 dark:text-slate-400">
                 No meetings scheduled yet
@@ -154,7 +158,7 @@ export default async function DashboardPage() {
                 return (
                   <div
                     key={booking.id}
-                    className="flex flex-col sm:flex-row sm:items-center justify-between py-4 gap-3"
+                    className="flex flex-col justify-between gap-3 py-4 sm:flex-row sm:items-center"
                   >
                     <div>
                       <h4 className="font-semibold text-slate-800 dark:text-slate-100">
@@ -165,7 +169,7 @@ export default async function DashboardPage() {
                       )}
                     </div>
                     <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      <div className="flex items-center gap-2 rounded-lg border border-slate-100 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
                         <Clock className="h-3.5 w-3.5 text-[#0069ff]" />
                         {new Date(booking.startTime).toLocaleString()}
                       </div>

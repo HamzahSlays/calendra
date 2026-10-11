@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ChevronLeft,
   ChevronRight,
@@ -24,13 +24,16 @@ interface Props {
   bookings?: any[];
   eventTypes?: EventTypeOption[];
   username?: string;
+  onOpenCreateModal?: () => void;
 }
 
 export default function MeetingCalendarView({
   bookings = [],
   eventTypes = [],
   username = "",
+  onOpenCreateModal,
 }: Props) {
+  const router = useRouter();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDateModal, setSelectedDateModal] = useState<string | null>(null);
 
@@ -64,6 +67,15 @@ export default function MeetingCalendarView({
   const selectedDateBookings = selectedDateModal
     ? bookingsByDate[selectedDateModal] || []
     : [];
+
+  const handleCreateNewClick = () => {
+    setSelectedDateModal(null);
+    if (onOpenCreateModal) {
+      onOpenCreateModal();
+    } else {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
 
   return (
     <div className="relative rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900">
@@ -189,7 +201,7 @@ export default function MeetingCalendarView({
               <button
                 type="button"
                 onClick={() => setSelectedDateModal(null)}
-                className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                className="rounded-xl p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -227,68 +239,63 @@ export default function MeetingCalendarView({
 
             {/* Book / Select Meeting Type Section */}
             <div className="mt-5">
-              <div className="flex items-center justify-between mb-2.5">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                  Book a Meeting on this date
-                </p>
-                <Link
-                  href="/events"
-                  onClick={() => setSelectedDateModal(null)}
-                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#0069ff] transition hover:underline dark:text-blue-400"
-                >
-                  <Plus className="h-3 w-3" />
-                  <span>Create New</span>
-                </Link>
-              </div>
+              <p className="mb-3 text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                Choose an Event Type
+              </p>
 
-              {eventTypes.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 p-5 text-center dark:border-slate-800 dark:bg-slate-850">
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    No meeting types found yet.
-                  </p>
-                  <Link
-                    href="/events"
-                    onClick={() => setSelectedDateModal(null)}
-                    className="mt-3 inline-flex items-center gap-2 rounded-xl bg-[#0069ff] px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#0057d6]"
-                  >
-                    <CalendarPlus className="h-3.5 w-3.5" />
-                    <span>Create Event Type</span>
-                  </Link>
-                </div>
-              ) : (
-                <div className="max-h-48 space-y-2 overflow-y-auto pr-1">
+              {/* List of Existing Event Types (Light Blue Buttons with gaps) */}
+              {eventTypes.length > 0 && (
+                <div className="max-h-56 space-y-3 overflow-y-auto pr-1 scrollbar-thin">
                   {eventTypes.map((et) => (
-                    <Link
+                    <button
                       key={et.id}
-                      href={`/${username}/${et.slug}?date=${selectedDateModal}`}
-                      onClick={() => setSelectedDateModal(null)}
-                      className="group flex items-center justify-between rounded-2xl border border-slate-200/80 bg-white p-3 text-xs transition-all hover:border-[#0069ff] hover:bg-blue-50/40 dark:border-slate-800 dark:bg-slate-800/40 dark:hover:border-[#0069ff] dark:hover:bg-blue-950/20"
+                      type="button"
+                      onClick={() => {
+                        setSelectedDateModal(null);
+                        router.push(`/${username}/${et.slug}?date=${selectedDateModal}`);
+                      }}
+                      className="group flex w-full items-center justify-between rounded-2xl border border-blue-100 bg-blue-50/70 p-3.5 text-left transition-all duration-150 hover:border-[#0069ff] hover:bg-blue-100/60 dark:border-blue-900/40 dark:bg-blue-950/30 dark:hover:border-[#0069ff] dark:hover:bg-blue-950/60"
                     >
-                      <div className="flex items-center gap-2.5">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-50 text-[#0069ff] dark:bg-blue-950/50 dark:text-blue-400">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-100 text-[#0069ff] dark:bg-blue-900/60 dark:text-blue-300">
                           <CalendarPlus className="h-4 w-4" />
                         </div>
                         <div>
-                          <p className="font-bold text-slate-800 dark:text-slate-200">
+                          <p className="text-sm font-bold text-[#0b3558] dark:text-white">
                             {et.title}
                           </p>
-                          <p className="text-[10px] text-slate-400">{et.duration} mins</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                            {et.duration} mins
+                          </p>
                         </div>
                       </div>
-                      <span className="flex items-center gap-1 font-semibold text-[#0069ff] transition-transform group-hover:translate-x-0.5 dark:text-blue-400">
-                        Book slot
-                        <ExternalLink className="h-3 w-3" />
+                      <span className="flex items-center gap-1.5 text-xs font-semibold text-[#0069ff] transition-transform group-hover:translate-x-1 dark:text-blue-400">
+                        <span>Book slot</span>
+                        <ExternalLink className="h-3.5 w-3.5" />
                       </span>
-                    </Link>
+                    </button>
                   ))}
                 </div>
               )}
+
+              {/* New Event Type Button (Solid Blue Box Button Matching Brand) */}
+              <div className={`${eventTypes.length > 0 ? "mt-4 pt-3 border-t border-slate-100 dark:border-slate-800" : "mt-2"}`}>
+                <button
+                  type="button"
+                  onClick={handleCreateNewClick}
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#0069ff] py-3.5 text-sm font-bold text-white shadow-md shadow-blue-500/20 transition-all hover:bg-[#0057d6] hover:shadow-lg hover:shadow-blue-500/30 active:scale-[0.99]"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>Create New Event Type</span>
+                </button>
+              </div>
             </div>
 
+            {/* Close Button */}
             <button
               type="button"
               onClick={() => setSelectedDateModal(null)}
-              className="mt-5 w-full rounded-2xl border border-slate-200 py-2.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800"
+              className="mt-4 w-full rounded-2xl border border-slate-200 py-2.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800"
             >
               Close
             </button>
