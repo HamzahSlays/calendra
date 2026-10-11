@@ -10,6 +10,9 @@ import {
   ExternalLink,
   Loader2,
   Lock,
+  Copy,
+  Check,
+  MessageSquare,
 } from "lucide-react";
 import { createBooking } from "@/actions/createBooking";
 
@@ -44,11 +47,15 @@ function BookingCalendarContent({ eventType, host, bookings = [] }: Props) {
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [guestName, setGuestName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
+  const [guestNotes, setGuestNotes] = useState("");
+  const [showNotesField, setShowNotesField] = useState(false);
+
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [meetUrl, setMeetUrl] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
-  // Generate standard 9:00 AM - 5:00 PM interval slots based on duration
+  // Generate standard interval slots
   const timeSlots = useMemo(() => {
     const slots: string[] = [];
     const duration = eventType.duration || 30;
@@ -83,7 +90,6 @@ function BookingCalendarContent({ eventType, host, bookings = [] }: Props) {
     const [year, month, day] = targetDateStr.split("-").map(Number);
     const pad = (n: number) => String(n).padStart(2, "0");
 
-    // Construct slot start with IST (+05:30) offset
     const slotIso = `${year}-${pad(month)}-${pad(day)}T${pad(hours)}:${pad(minutes)}:00+05:30`;
     const slotStart = new Date(slotIso).getTime();
     const slotEnd = slotStart + (eventType.duration || 30) * 60000;
@@ -93,6 +99,17 @@ function BookingCalendarContent({ eventType, host, bookings = [] }: Props) {
       const bEnd = new Date(b.endTime).getTime();
       return slotStart < bEnd && slotEnd > bStart;
     });
+  };
+
+  const handleCopyLink = async () => {
+    if (!meetUrl) return;
+    try {
+      await navigator.clipboard.writeText(meetUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy link:", err);
+    }
   };
 
   const handleBooking = async (e: React.FormEvent) => {
@@ -110,6 +127,7 @@ function BookingCalendarContent({ eventType, host, bookings = [] }: Props) {
         guestEmail,
         date: selectedDate,
         time: selectedTime,
+        notes: guestNotes.trim() || undefined,
       });
 
       if (response?.success) {
@@ -140,29 +158,50 @@ function BookingCalendarContent({ eventType, host, bookings = [] }: Props) {
           <strong className="text-slate-800 dark:text-slate-200">{eventType.title}</strong>.
         </p>
 
-        <div className="mt-6 flex flex-col gap-2 rounded-2xl bg-slate-50 p-4 text-xs font-semibold text-slate-700 dark:bg-slate-800/60 dark:text-slate-200">
+        <div className="mt-6 flex flex-col gap-3 rounded-2xl bg-slate-50 p-4 text-xs font-semibold text-slate-700 dark:bg-slate-800/60 dark:text-slate-200">
           <div className="flex items-center justify-center gap-2">
             <CalendarIcon className="h-3.5 w-3.5 text-[#0069ff]" />
             <span>{selectedDate}</span>
             <span>•</span>
             <span>{selectedTime}</span>
           </div>
+
           {meetUrl && (
-            <a
-              href={meetUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-2 inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#0069ff] px-4 py-2.5 text-xs font-bold text-white transition hover:bg-[#0057d6]"
-            >
-              <Video className="h-3.5 w-3.5" />
-              <span>Join Google Meet</span>
-              <ExternalLink className="h-3 w-3 opacity-75" />
-            </a>
+            <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+              <a
+                href={meetUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#0069ff] px-4 py-2.5 text-xs font-bold text-white transition hover:bg-[#0057d6]"
+              >
+                <Video className="h-3.5 w-3.5" />
+                <span>Join Google Meet</span>
+                <ExternalLink className="h-3 w-3 opacity-75" />
+              </a>
+
+              <button
+                type="button"
+                onClick={handleCopyLink}
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+              >
+                {copied ? (
+                  <>
+                    <Check className="h-3.5 w-3.5 text-emerald-500" />
+                    <span>Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-3.5 w-3.5" />
+                    <span>Copy Link</span>
+                  </>
+                )}
+              </button>
+            </div>
           )}
         </div>
 
         <p className="mt-4 text-[11px] text-slate-400 dark:text-slate-500">
-          A confirmation email with calendar invitation details has been dispatched to {guestEmail}.
+          A confirmation email with calendar invitation details has been sent to {guestEmail}.
         </p>
       </div>
     );
@@ -190,7 +229,7 @@ function BookingCalendarContent({ eventType, host, bookings = [] }: Props) {
             <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 text-[#0069ff] dark:bg-blue-950/40 dark:text-blue-400">
               <Video className="h-4 w-4" />
             </span>
-            <span>Web conferencing details provided upon confirmation</span>
+            <span>Google Meet provided upon booking</span>
           </div>
         </div>
 
@@ -201,7 +240,7 @@ function BookingCalendarContent({ eventType, host, bookings = [] }: Props) {
         )}
       </div>
 
-      {/* Right Column: Date Picker, Slots, and Form */}
+      {/* Right Column: Date Picker, Slots, and Guest Form */}
       <div className="flex flex-1 flex-col gap-6 p-8 sm:flex-row">
         <div className="flex-1">
           <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">
@@ -238,6 +277,44 @@ function BookingCalendarContent({ eventType, host, bookings = [] }: Props) {
                 onChange={(e) => setGuestEmail(e.target.value)}
                 className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm font-medium text-slate-900 placeholder:text-slate-400 transition focus:border-[#0069ff] focus:outline-none focus:ring-2 focus:ring-[#0069ff]/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-500"
               />
+
+              {/* Add Note to Host Feature */}
+              {!showNotesField ? (
+                <button
+                  type="button"
+                  onClick={() => setShowNotesField(true)}
+                  className="flex items-center gap-1.5 text-xs font-semibold text-[#0069ff] hover:underline dark:text-blue-400"
+                >
+                  <MessageSquare className="h-3.5 w-3.5" />
+                  <span>+ Add a note to host</span>
+                </button>
+              ) : (
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                      Note to host:
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowNotesField(false);
+                        setGuestNotes("");
+                      }}
+                      className="text-[10px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <textarea
+                    rows={2}
+                    placeholder="Briefly state topics you want to discuss..."
+                    value={guestNotes}
+                    onChange={(e) => setGuestNotes(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs text-slate-900 placeholder:text-slate-400 transition focus:border-[#0069ff] focus:outline-none focus:ring-2 focus:ring-[#0069ff]/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-500"
+                  />
+                </div>
+              )}
+
               <button
                 type="submit"
                 disabled={isSubmitting}

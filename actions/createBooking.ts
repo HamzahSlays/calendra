@@ -15,10 +15,11 @@ interface BookingPayload {
   guestEmail: string;
   date: string;
   time: string;
+  notes?: string;
 }
 
 export async function createBooking(payload: BookingPayload) {
-  const { eventTypeId, guestName, guestEmail, date, time } = payload;
+  const { eventTypeId, guestName, guestEmail, date, time, notes } = payload;
 
   const eventType = await db.eventType.findUnique({
     where: { id: eventTypeId },
@@ -59,12 +60,17 @@ export async function createBooking(payload: BookingPayload) {
 
       const calendar = google.calendar({ version: "v3", auth: oauth2Client });
 
+      const descriptionContent = [
+        eventType.description || "Scheduled via Calendra",
+        notes ? `\n\nGuest Note:\n${notes}` : "",
+      ].filter(Boolean).join("");
+
       const gcalEvent = await calendar.events.insert({
         calendarId: "primary",
         conferenceDataVersion: 1,
         requestBody: {
           summary: `${eventType.title}: ${guestName}`,
-          description: eventType.description || "Scheduled via Calendra",
+          description: descriptionContent,
           start: {
             dateTime: startTime.toISOString(),
             timeZone: "Asia/Kolkata",
@@ -108,7 +114,7 @@ export async function createBooking(payload: BookingPayload) {
     createEvent(
       {
         title: `${eventType.title} with ${eventType.user.name || "Host"}`,
-        description: `${eventType.description || ""}${meetLink ? `\n\nGoogle Meet: ${meetLink}` : ""}`,
+        description: `${eventType.description || ""}${notes ? `\nNote: ${notes}` : ""}${meetLink ? `\n\nGoogle Meet: ${meetLink}` : ""}`,
         url: meetLink || undefined,
         start: icsStartDate,
         duration: { minutes: eventType.duration },
@@ -143,28 +149,37 @@ export async function createBooking(payload: BookingPayload) {
     timeStyle: "short",
   });
 
-  // 4. Send confirmation emails separately so sandbox restrictions don't block both
+  // 4. Send confirmation emails separately
   if (process.env.RESEND_API_KEY) {
     const hostEmail = eventType.user.email;
     const recipients = Array.from(new Set([guestEmail, hostEmail].filter(Boolean))) as string[];
 
     for (const recipient of recipients) {
+      const isHost = recipient === hostEmail;
+
       try {
         await resend.emails.send({
           from: "Calendra <onboarding@resend.dev>",
           to: [recipient],
-          subject: `Confirmed: ${eventType.title} with ${guestName}`,
+          subject: isHost
+            ? `New Booking: ${eventType.title} with ${guestName}`
+            : `Confirmed: ${eventType.title} with ${eventType.user.name || "Host"}`,
           html: `
             <div style="font-family: sans-serif; line-height: 1.6; color: #111; max-width: 600px; margin: auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px;">
               <h2 style="color: #0069ff; margin-top: 0;">Meeting Confirmed!</h2>
-              <p><strong>${eventType.title}</strong> has been scheduled between <strong>${eventType.user.name || "Host"}</strong> and <strong>${guestName}</strong> (${guestEmail}).</p>
+              <p><strong>${eventType.title}</strong> is scheduled between <strong>${eventType.user.name || "Host"}</strong> and <strong>${guestName}</strong> (${guestEmail}).</p>
               
               <div style="background: #f8fafc; padding: 16px; border-radius: 12px; margin: 20px 0;">
                 <p style="margin: 0 0 8px 0;"><strong>Date & Time:</strong> ${formattedDisplayTime}</p>
                 <p style="margin: 0 0 8px 0;"><strong>Duration:</strong> ${eventType.duration} minutes</p>
                 ${
                   meetLink
-                    ? `<p style="margin: 0;"><strong>Video Call:</strong> <a href="${meetLink}" style="color: #0069ff; font-weight: bold;">Join Google Meet</a></p>`
+                    ? `<p style="margin: 0 0 8px 0;"><strong>Video Call:</strong> <a href="${meetLink}" style="color: #0069ff; font-weight: bold;">Join Google Meet</a></p>`
+                    : ""
+                }
+                ${
+                  notes
+                    ? `<p style="margin: 8px 0 0 0; padding-top: 8px; border-top: 1px dashed #cbd5e1;"><strong>Note from Guest:</strong> <em>"${notes}"</em></p>`
                     : ""
                 }
               </div>
@@ -187,7 +202,7 @@ export async function createBooking(payload: BookingPayload) {
     }
   }
 
-  // 5. Invalidate server cache across routes
+  // 5. Invalidate server cache
   revalidatePath("/dashboard");
   revalidatePath(`/${eventType.user.username}`);
   revalidatePath(`/${eventType.user.username}/${eventType.slug}`);
