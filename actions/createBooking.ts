@@ -27,26 +27,23 @@ export async function createBooking(payload: BookingPayload) {
 
   if (!eventType) throw new Error("Event type not found in database.");
 
-  // Parse start time and end time
+  // Parse start and end times
   const [timePart, meridiem] = time.split(" ");
   let [hours, minutes] = timePart.split(":").map(Number);
   if (meridiem === "PM" && hours < 12) hours += 12;
   if (meridiem === "AM" && hours === 12) hours = 0;
 
   const [year, month, day] = date.split("-").map(Number);
-
-  // Pad numbers to construct ISO format
   const pad = (n: number) => String(n).padStart(2, "0");
 
-  // Construct ISO string with explicit IST (+05:30) offset
+  // Construct ISO string with IST (+05:30) offset
   const localIsoString = `${year}-${pad(month)}-${pad(day)}T${pad(hours)}:${pad(minutes)}:00+05:30`;
   const startTime = new Date(localIsoString);
   const endTime = new Date(startTime.getTime() + eventType.duration * 60000);
 
-  // 1. Declare meetLink here so it can be assigned inside try block and returned at the end
   let meetLink: string | null = null;
 
-  // 2. Direct Google Calendar API integration
+  // 1. Google Calendar API integration
   try {
     const client = await clerkClient();
     const tokenResponse = await client.users.getUserOauthAccessToken(
@@ -86,17 +83,13 @@ export async function createBooking(payload: BookingPayload) {
         },
       });
 
-      // Assign the generated Google Meet link
       meetLink = gcalEvent.data.hangoutLink || null;
-      console.log("Successfully created Google Calendar event with Meet:", meetLink);
-    } else {
-      console.warn("No Google OAuth token found for host in Clerk. Skipping direct GCal sync.");
     }
   } catch (gcalErr) {
-    console.error("Google Calendar insertion failed:", gcalErr);
+    console.error("Google Calendar insertion error:", gcalErr);
   }
 
-  // 3. Save booking to database
+  // 2. Persist to PostgreSQL database
   const booking = await db.booking.create({
     data: {
       userId: eventType.userId,
@@ -108,14 +101,8 @@ export async function createBooking(payload: BookingPayload) {
     },
   });
 
-  // 4. Generate .ics file attachment
-  const icsStartDate: DateArray = [
-    year,
-    month,
-    day,
-    hours,
-    minutes,
-  ];
+  // 3. Generate .ics file attachment
+  const icsStartDate: DateArray = [year, month, day, hours, minutes];
 
   const icsEvent = await new Promise<string>((resolve, reject) => {
     createEvent(
@@ -150,59 +137,60 @@ export async function createBooking(payload: BookingPayload) {
 
   const icsBuffer = Buffer.from(icsEvent, "utf-8");
 
-  // Format display time for email in Asia/Kolkata timezone
   const formattedDisplayTime = startTime.toLocaleString("en-US", {
     timeZone: "Asia/Kolkata",
     dateStyle: "full",
     timeStyle: "short",
   });
 
-  // 5. Send confirmation email to both Guest and Host
+  // 4. Send confirmation emails separately so sandbox restrictions don't block both
   if (process.env.RESEND_API_KEY) {
-    try {
-      const hostEmail = eventType.user.email;
-      const recipients = hostEmail && hostEmail !== guestEmail
-        ? [guestEmail, hostEmail]
-        : [guestEmail];
+    const hostEmail = eventType.user.email;
+    const recipients = Array.from(new Set([guestEmail, hostEmail].filter(Boolean))) as string[];
 
-      await resend.emails.send({
-        from: "Calendra <onboarding@resend.dev>",
-        to: recipients,
-        subject: `Confirmed: ${eventType.title} with ${guestName}`,
-        html: `
-          <div style="font-family: sans-serif; line-height: 1.6; color: #111; max-width: 600px; margin: auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px;">
-            <h2 style="color: #0069ff; margin-top: 0;">Meeting Confirmed!</h2>
-            <p><strong>${eventType.title}</strong> has been scheduled between <strong>${eventType.user.name || "Host"}</strong> and <strong>${guestName}</strong> (${guestEmail}).</p>
-            
-            <div style="background: #f8fafc; padding: 16px; border-radius: 12px; margin: 20px 0;">
-              <p style="margin: 0 0 8px 0;"><strong>Date & Time:</strong> ${formattedDisplayTime}</p>
-              <p style="margin: 0 0 8px 0;"><strong>Duration:</strong> ${eventType.duration} minutes</p>
-              ${
-                meetLink
-                  ? `<p style="margin: 0;"><strong>Video Call:</strong> <a href="${meetLink}" style="color: #0069ff; font-weight: bold;">Join Google Meet</a></p>`
-                  : ""
-              }
+    for (const recipient of recipients) {
+      try {
+        await resend.emails.send({
+          from: "Calendra <onboarding@resend.dev>",
+          to: [recipient],
+          subject: `Confirmed: ${eventType.title} with ${guestName}`,
+          html: `
+            <div style="font-family: sans-serif; line-height: 1.6; color: #111; max-width: 600px; margin: auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px;">
+              <h2 style="color: #0069ff; margin-top: 0;">Meeting Confirmed!</h2>
+              <p><strong>${eventType.title}</strong> has been scheduled between <strong>${eventType.user.name || "Host"}</strong> and <strong>${guestName}</strong> (${guestEmail}).</p>
+              
+              <div style="background: #f8fafc; padding: 16px; border-radius: 12px; margin: 20px 0;">
+                <p style="margin: 0 0 8px 0;"><strong>Date & Time:</strong> ${formattedDisplayTime}</p>
+                <p style="margin: 0 0 8px 0;"><strong>Duration:</strong> ${eventType.duration} minutes</p>
+                ${
+                  meetLink
+                    ? `<p style="margin: 0;"><strong>Video Call:</strong> <a href="${meetLink}" style="color: #0069ff; font-weight: bold;">Join Google Meet</a></p>`
+                    : ""
+                }
+              </div>
+
+              <p style="color: #475569; font-size: 14px;">An <code>invite.ics</code> file is attached to sync with external calendar apps.</p>
+              <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 20px 0;" />
+              <p style="color: #94a3b8; font-size: 12px;">Sent via Calendra Scheduling</p>
             </div>
-
-            <p style="color: #475569; font-size: 14px;">An <code>invite.ics</code> file is attached to sync with external calendar apps.</p>
-            <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 20px 0;" />
-            <p style="color: #94a3b8; font-size: 12px;">Sent via Calendra Scheduling</p>
-          </div>
-        `,
-        attachments: [
-          {
-            filename: "invite.ics",
-            content: icsBuffer,
-          },
-        ],
-      });
-    } catch (emailErr) {
-      console.error("Resend error:", emailErr);
+          `,
+          attachments: [
+            {
+              filename: "invite.ics",
+              content: icsBuffer,
+            },
+          ],
+        });
+      } catch (emailErr) {
+        console.error(`Resend failed delivering to ${recipient}:`, emailErr);
+      }
     }
   }
 
+  // 5. Invalidate server cache across routes
   revalidatePath("/dashboard");
+  revalidatePath(`/${eventType.user.username}`);
+  revalidatePath(`/${eventType.user.username}/${eventType.slug}`);
 
-  // 6. Return meetLink in the payload
   return { success: true, bookingId: booking.id, meetLink };
 }

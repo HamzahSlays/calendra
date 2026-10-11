@@ -2,7 +2,15 @@
 
 import { useState, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Clock, Video, CheckCircle2, Calendar as CalendarIcon, ExternalLink, Loader2, Lock } from "lucide-react";
+import {
+  Clock,
+  Video,
+  CheckCircle2,
+  Calendar as CalendarIcon,
+  ExternalLink,
+  Loader2,
+  Lock,
+} from "lucide-react";
 import { createBooking } from "@/actions/createBooking";
 
 interface BookingRecord {
@@ -30,7 +38,6 @@ function BookingCalendarContent({ eventType, host, bookings = [] }: Props) {
   const searchParams = useSearchParams();
   const dateFromQuery = searchParams.get("date");
 
-  // Uses the date clicked from the dashboard calendar, or defaults to today
   const [selectedDate, setSelectedDate] = useState<string>(
     dateFromQuery || new Date().toISOString().split("T")[0]
   );
@@ -41,7 +48,7 @@ function BookingCalendarContent({ eventType, host, bookings = [] }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [meetUrl, setMeetUrl] = useState<string | null>(null);
 
-  // Generate dynamic intervals based on duration
+  // Generate standard 9:00 AM - 5:00 PM interval slots based on duration
   const timeSlots = useMemo(() => {
     const slots: string[] = [];
     const duration = eventType.duration || 30;
@@ -66,33 +73,32 @@ function BookingCalendarContent({ eventType, host, bookings = [] }: Props) {
     return slots;
   }, [eventType.duration]);
 
-  // Check if a generated slot collides with any existing booking on the chosen date
+  // Collision detection helper
   const isSlotBooked = (slotTime: string, targetDateStr: string) => {
     const [timePart, meridiem] = slotTime.split(" ");
-    let [h, m] = timePart.split(":").map(Number);
-    if (meridiem === "PM" && h < 12) h += 12;
-    if (meridiem === "AM" && h === 12) h = 0;
+    let [hours, minutes] = timePart.split(":").map(Number);
+    if (meridiem === "PM" && hours < 12) hours += 12;
+    if (meridiem === "AM" && hours === 12) hours = 0;
 
     const [year, month, day] = targetDateStr.split("-").map(Number);
     const pad = (n: number) => String(n).padStart(2, "0");
 
-    // Construct slot start in Asia/Kolkata (+05:30)
-    const slotIso = `${year}-${pad(month)}-${pad(day)}T${pad(h)}:${pad(m)}:00+05:30`;
+    // Construct slot start with IST (+05:30) offset
+    const slotIso = `${year}-${pad(month)}-${pad(day)}T${pad(hours)}:${pad(minutes)}:00+05:30`;
     const slotStart = new Date(slotIso).getTime();
     const slotEnd = slotStart + (eventType.duration || 30) * 60000;
 
     return bookings.some((b) => {
-      const bookingStart = new Date(b.startTime).getTime();
-      const bookingEnd = new Date(b.endTime).getTime();
-      // Overlap condition: slot starts before booking ends AND slot ends after booking starts
-      return slotStart < bookingEnd && slotEnd > bookingStart;
+      const bStart = new Date(b.startTime).getTime();
+      const bEnd = new Date(b.endTime).getTime();
+      return slotStart < bEnd && slotEnd > bStart;
     });
   };
 
   const handleBooking = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedTime) {
-      alert("Please choose a time slot first.");
+      alert("Please choose an available time slot first.");
       return;
     }
     setIsSubmitting(true);
@@ -122,7 +128,7 @@ function BookingCalendarContent({ eventType, host, bookings = [] }: Props) {
 
   if (isConfirmed) {
     return (
-      <div className="mx-auto max-w-lg rounded-3xl border border-slate-200/80 bg-white p-10 text-center shadow-xl dark:border-slate-800 dark:bg-slate-900">
+      <div className="mx-auto max-w-lg rounded-3xl border border-slate-200/80 bg-white p-8 text-center shadow-xl transition-colors dark:border-slate-800 dark:bg-slate-900 sm:p-10">
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-500 shadow-sm dark:bg-emerald-950/40 dark:text-emerald-400">
           <CheckCircle2 className="h-9 w-9" />
         </div>
@@ -156,16 +162,16 @@ function BookingCalendarContent({ eventType, host, bookings = [] }: Props) {
         </div>
 
         <p className="mt-4 text-[11px] text-slate-400 dark:text-slate-500">
-          A confirmation email with calendar invitation details has been sent to {guestEmail}.
+          A confirmation email with calendar invitation details has been dispatched to {guestEmail}.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900 md:flex-row">
+    <div className="mx-auto flex w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-xl transition-colors dark:border-slate-800 dark:bg-slate-900 md:flex-row">
       {/* Left Column: Event Details */}
-      <div className="border-b border-slate-100 p-8 dark:border-slate-800 md:w-5/12 md:border-b-0 md:border-r">
+      <div className="border-b border-slate-100 p-8 transition-colors dark:border-slate-800 md:w-5/12 md:border-b-0 md:border-r">
         <p className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
           {host.name}
         </p>
@@ -195,7 +201,7 @@ function BookingCalendarContent({ eventType, host, bookings = [] }: Props) {
         )}
       </div>
 
-      {/* Right Column: Interactive Form */}
+      {/* Right Column: Date Picker, Slots, and Form */}
       <div className="flex flex-1 flex-col gap-6 p-8 sm:flex-row">
         <div className="flex-1">
           <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">
@@ -291,7 +297,6 @@ function BookingCalendarContent({ eventType, host, bookings = [] }: Props) {
   );
 }
 
-// Next.js requires components accessing useSearchParams() to be wrapped in a Suspense boundary
 export default function BookingCalendar(props: Props) {
   return (
     <Suspense
