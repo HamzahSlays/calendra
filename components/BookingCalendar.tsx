@@ -2,8 +2,14 @@
 
 import { useState, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Clock, Video, CheckCircle2, Calendar as CalendarIcon, ExternalLink, Loader2 } from "lucide-react";
+import { Clock, Video, CheckCircle2, Calendar as CalendarIcon, ExternalLink, Loader2, Lock } from "lucide-react";
 import { createBooking } from "@/actions/createBooking";
+
+interface BookingRecord {
+  id: string;
+  startTime: string;
+  endTime: string;
+}
 
 interface Props {
   eventType: {
@@ -17,9 +23,10 @@ interface Props {
     name: string | null;
   };
   availability?: any;
+  bookings?: BookingRecord[];
 }
 
-function BookingCalendarContent({ eventType, host }: Props) {
+function BookingCalendarContent({ eventType, host, bookings = [] }: Props) {
   const searchParams = useSearchParams();
   const dateFromQuery = searchParams.get("date");
 
@@ -58,6 +65,29 @@ function BookingCalendarContent({ eventType, host }: Props) {
 
     return slots;
   }, [eventType.duration]);
+
+  // Check if a generated slot collides with any existing booking on the chosen date
+  const isSlotBooked = (slotTime: string, targetDateStr: string) => {
+    const [timePart, meridiem] = slotTime.split(" ");
+    let [h, m] = timePart.split(":").map(Number);
+    if (meridiem === "PM" && h < 12) h += 12;
+    if (meridiem === "AM" && h === 12) h = 0;
+
+    const [year, month, day] = targetDateStr.split("-").map(Number);
+    const pad = (n: number) => String(n).padStart(2, "0");
+
+    // Construct slot start in Asia/Kolkata (+05:30)
+    const slotIso = `${year}-${pad(month)}-${pad(day)}T${pad(h)}:${pad(m)}:00+05:30`;
+    const slotStart = new Date(slotIso).getTime();
+    const slotEnd = slotStart + (eventType.duration || 30) * 60000;
+
+    return bookings.some((b) => {
+      const bookingStart = new Date(b.startTime).getTime();
+      const bookingEnd = new Date(b.endTime).getTime();
+      // Overlap condition: slot starts before booking ends AND slot ends after booking starts
+      return slotStart < bookingEnd && slotEnd > bookingStart;
+    });
+  };
 
   const handleBooking = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -174,7 +204,10 @@ function BookingCalendarContent({ eventType, host }: Props) {
           <input
             type="date"
             value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
+            onChange={(e) => {
+              setSelectedDate(e.target.value);
+              setSelectedTime(null);
+            }}
             className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm font-medium text-slate-900 transition focus:border-[#0069ff] focus:outline-none focus:ring-2 focus:ring-[#0069ff]/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
           />
 
@@ -224,19 +257,30 @@ function BookingCalendarContent({ eventType, host }: Props) {
           </h2>
           <div className="max-h-[340px] flex-1 space-y-2 overflow-y-auto pr-1 select-none scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-700">
             {timeSlots.map((time) => {
+              const booked = isSlotBooked(time, selectedDate);
               const isSelected = selectedTime === time;
+
               return (
                 <button
                   key={time}
                   type="button"
-                  onClick={() => setSelectedTime(time)}
-                  className={`w-full rounded-xl border py-2.5 text-xs font-semibold transition ${
-                    isSelected
+                  disabled={booked}
+                  onClick={() => !booked && setSelectedTime(time)}
+                  className={`group relative flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-xs font-semibold transition ${
+                    booked
+                      ? "cursor-not-allowed border border-dashed border-slate-200 bg-slate-100/70 text-slate-400 opacity-50 line-through dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-600"
+                      : isSelected
                       ? "border-[#0069ff] bg-[#0069ff] text-white shadow-sm"
                       : "border-slate-200 bg-white text-slate-700 hover:border-[#0069ff] hover:text-[#0069ff] dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-[#0069ff]"
                   }`}
                 >
-                  {time}
+                  <span>{time}</span>
+                  {booked && (
+                    <span className="flex items-center gap-1 rounded bg-slate-200/70 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-rose-500 no-underline dark:bg-slate-800 dark:text-rose-400">
+                      <Lock className="h-2.5 w-2.5" />
+                      Booked
+                    </span>
+                  )}
                 </button>
               );
             })}

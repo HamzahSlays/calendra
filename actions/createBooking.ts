@@ -109,7 +109,6 @@ export async function createBooking(payload: BookingPayload) {
   });
 
   // 4. Generate .ics file attachment
-  // Use exact local values so external calendar clients parse 10:00 AM
   const icsStartDate: DateArray = [
     year,
     month,
@@ -158,17 +157,22 @@ export async function createBooking(payload: BookingPayload) {
     timeStyle: "short",
   });
 
-  // 5. Send confirmation email
+  // 5. Send confirmation email to both Guest and Host
   if (process.env.RESEND_API_KEY) {
     try {
+      const hostEmail = eventType.user.email;
+      const recipients = hostEmail && hostEmail !== guestEmail
+        ? [guestEmail, hostEmail]
+        : [guestEmail];
+
       await resend.emails.send({
         from: "Calendra <onboarding@resend.dev>",
-        to: [guestEmail],
-        subject: `Confirmed: ${eventType.title} with ${eventType.user.name || "Host"}`,
+        to: recipients,
+        subject: `Confirmed: ${eventType.title} with ${guestName}`,
         html: `
           <div style="font-family: sans-serif; line-height: 1.6; color: #111; max-width: 600px; margin: auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px;">
             <h2 style="color: #0069ff; margin-top: 0;">Meeting Confirmed!</h2>
-            <p>You have scheduled <strong>${eventType.title}</strong> with <strong>${eventType.user.name || "Host"}</strong>.</p>
+            <p><strong>${eventType.title}</strong> has been scheduled between <strong>${eventType.user.name || "Host"}</strong> and <strong>${guestName}</strong> (${guestEmail}).</p>
             
             <div style="background: #f8fafc; padding: 16px; border-radius: 12px; margin: 20px 0;">
               <p style="margin: 0 0 8px 0;"><strong>Date & Time:</strong> ${formattedDisplayTime}</p>
