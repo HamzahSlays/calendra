@@ -34,7 +34,13 @@ export async function createBooking(payload: BookingPayload) {
   if (meridiem === "AM" && hours === 12) hours = 0;
 
   const [year, month, day] = date.split("-").map(Number);
-  const startTime = new Date(year, month - 1, day, hours, minutes);
+
+  // Pad numbers to construct ISO format
+  const pad = (n: number) => String(n).padStart(2, "0");
+
+  // Construct ISO string with explicit IST (+05:30) offset
+  const localIsoString = `${year}-${pad(month)}-${pad(day)}T${pad(hours)}:${pad(minutes)}:00+05:30`;
+  const startTime = new Date(localIsoString);
   const endTime = new Date(startTime.getTime() + eventType.duration * 60000);
 
   // 1. Declare meetLink here so it can be assigned inside try block and returned at the end
@@ -62,8 +68,14 @@ export async function createBooking(payload: BookingPayload) {
         requestBody: {
           summary: `${eventType.title}: ${guestName}`,
           description: eventType.description || "Scheduled via Calendra",
-          start: { dateTime: startTime.toISOString() },
-          end: { dateTime: endTime.toISOString() },
+          start: {
+            dateTime: startTime.toISOString(),
+            timeZone: "Asia/Kolkata",
+          },
+          end: {
+            dateTime: endTime.toISOString(),
+            timeZone: "Asia/Kolkata",
+          },
           attendees: [{ email: guestEmail, displayName: guestName }],
           conferenceData: {
             createRequest: {
@@ -97,12 +109,13 @@ export async function createBooking(payload: BookingPayload) {
   });
 
   // 4. Generate .ics file attachment
+  // Use exact local values so external calendar clients parse 10:00 AM
   const icsStartDate: DateArray = [
-    startTime.getFullYear(),
-    startTime.getMonth() + 1,
-    startTime.getDate(),
-    startTime.getHours(),
-    startTime.getMinutes(),
+    year,
+    month,
+    day,
+    hours,
+    minutes,
   ];
 
   const icsEvent = await new Promise<string>((resolve, reject) => {
@@ -138,6 +151,13 @@ export async function createBooking(payload: BookingPayload) {
 
   const icsBuffer = Buffer.from(icsEvent, "utf-8");
 
+  // Format display time for email in Asia/Kolkata timezone
+  const formattedDisplayTime = startTime.toLocaleString("en-US", {
+    timeZone: "Asia/Kolkata",
+    dateStyle: "full",
+    timeStyle: "short",
+  });
+
   // 5. Send confirmation email
   if (process.env.RESEND_API_KEY) {
     try {
@@ -151,7 +171,7 @@ export async function createBooking(payload: BookingPayload) {
             <p>You have scheduled <strong>${eventType.title}</strong> with <strong>${eventType.user.name || "Host"}</strong>.</p>
             
             <div style="background: #f8fafc; padding: 16px; border-radius: 12px; margin: 20px 0;">
-              <p style="margin: 0 0 8px 0;"><strong>Date & Time:</strong> ${startTime.toLocaleString()}</p>
+              <p style="margin: 0 0 8px 0;"><strong>Date & Time:</strong> ${formattedDisplayTime}</p>
               <p style="margin: 0 0 8px 0;"><strong>Duration:</strong> ${eventType.duration} minutes</p>
               ${
                 meetLink
