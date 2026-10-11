@@ -2,7 +2,7 @@ import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/prisma";
 import Link from "next/link";
-import { Calendar, Clock, Settings, ExternalLink } from "lucide-react";
+import { Calendar, Clock, Settings, ExternalLink, CheckCircle2 } from "lucide-react";
 import CreateEventModal from "@/components/CreateEventModal";
 import EventCard from "@/components/EventCard";
 import CancelBookingButton from "@/components/CancelBookingButton";
@@ -25,6 +25,12 @@ export default async function DashboardPage() {
   if (!dbUser) redirect("/sign-in");
 
   const bookingUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://calendra-phi.vercel.app"}/${dbUser.username || ""}`;
+
+  // Filter and metrics calculation
+  const now = new Date();
+  const upcomingCount = (dbUser.bookings || []).filter(
+    (b) => new Date(b.startTime) >= now
+  ).length;
 
   return (
     <div className="min-h-[calc(100vh-64px)] bg-[#fbfcfe] px-6 py-10 text-[#0b3558] transition-colors dark:bg-slate-900 dark:text-slate-100 sm:px-10">
@@ -91,7 +97,7 @@ export default async function DashboardPage() {
               Upcoming Meetings
             </span>
             <p className="mt-2 text-4xl font-extrabold text-[#0b3558] dark:text-white">
-              {dbUser.bookings?.length || 0}
+              {upcomingCount}
             </p>
           </div>
 
@@ -135,9 +141,14 @@ export default async function DashboardPage() {
           username={dbUser.username || ""}
         />
 
-        {/* Upcoming Meetings List */}
+        {/* Schedule List (Differentiated Graphics for Upcoming vs Completed) */}
         <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-800/80">
-          <h3 className="text-lg font-bold text-[#0b3558] dark:text-white">Upcoming Schedule</h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-bold text-[#0b3558] dark:text-white">Meetings Schedule</h3>
+            <span className="text-xs font-semibold text-slate-400">
+              {upcomingCount} upcoming • {(dbUser.bookings?.length || 0) - upcomingCount} completed
+            </span>
+          </div>
 
           {!dbUser.bookings || dbUser.bookings.length === 0 ? (
             <div className="mt-6 flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 py-12 text-center dark:border-slate-700">
@@ -154,29 +165,60 @@ export default async function DashboardPage() {
               {dbUser.bookings.map((booking: any) => {
                 const displayName = booking.customerName || booking.guestName || "Guest";
                 const displayEmail = booking.customerEmail || booking.guestEmail || "";
+                const isPast = new Date(booking.startTime) < now;
 
                 return (
                   <div
                     key={booking.id}
-                    className="flex flex-col justify-between gap-3 py-4 sm:flex-row sm:items-center"
+                    className={`flex flex-col justify-between gap-3 py-4 transition-all sm:flex-row sm:items-center ${
+                      isPast ? "opacity-65" : "opacity-100"
+                    }`}
                   >
                     <div>
-                      <h4 className="font-semibold text-slate-800 dark:text-slate-100">
-                        {displayName}
-                      </h4>
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-semibold text-slate-800 dark:text-slate-100">
+                          {displayName}
+                        </h4>
+
+                        {/* Status Badge */}
+                        {isPast ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                            <CheckCircle2 className="h-3 w-3 text-slate-400" />
+                            Completed
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            Upcoming
+                          </span>
+                        )}
+                      </div>
+
                       {displayEmail && (
                         <p className="text-sm text-slate-500 dark:text-slate-400">{displayEmail}</p>
                       )}
                     </div>
+
                     <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-2 rounded-lg border border-slate-100 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
-                        <Clock className="h-3.5 w-3.5 text-[#0069ff]" />
+                      {/* Date Badge */}
+                      <div
+                        className={`flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-semibold ${
+                          isPast
+                            ? "border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-400"
+                            : "border-blue-100 bg-blue-50/60 text-[#0069ff] dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-400"
+                        }`}
+                      >
+                        <Clock className="h-3.5 w-3.5" />
                         {new Date(booking.startTime).toLocaleString()}
                       </div>
-                      <CancelBookingButton
-                        bookingId={booking.id}
-                        guestName={displayName}
-                      />
+
+                      {/* Cancel Button only for upcoming meetings */}
+                      {!isPast ? (
+                        <CancelBookingButton
+                          bookingId={booking.id}
+                          guestName={displayName}
+                        />
+                      ) : null}
                     </div>
                   </div>
                 );
